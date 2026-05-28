@@ -1,0 +1,10 @@
+streamlit
+pymupdf
+python-docx
+sentence-transformers
+faiss-cpu
+ollama
+numpy
+fastapi
+uvicorn[standard]
+python-multipart
