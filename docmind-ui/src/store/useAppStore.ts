@@ -8,11 +8,20 @@ export interface Citation {
   page?: number;
 }
 
+export interface HallucinationResult {
+  verdict: 'SUPPORTED' | 'PARTIALLY_SUPPORTED' | 'NOT_SUPPORTED' | 'UNKNOWN';
+  confidence: number;
+  reason: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   citations?: Citation[];
+  keyPoints?: string[];
+  suggestedQuestions?: string[];
+  hallucination?: HallucinationResult;
   isStreaming?: boolean;
 }
 

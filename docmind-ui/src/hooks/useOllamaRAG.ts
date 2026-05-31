@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useAppStore, Citation } from '../store/useAppStore';
+import { useAppStore, Citation, HallucinationResult } from '../store/useAppStore';
 
 
 const API_BASE = 'http://localhost:8000';
@@ -131,6 +131,9 @@ export function useOllamaRAG() {
       const data = await response.json();
       const fullText: string = data.answer || '';
       const chunks: string[] = data.chunks || [];
+      const keyPoints: string[] = data.key_points || [];
+      const suggestedQuestions: string[] = data.suggested_questions || [];
+      const hallucination: HallucinationResult | undefined = data.hallucination;
 
       // Build citations from returned chunks
       const citations: Citation[] = chunks.map((text: string, i: number) => ({
@@ -154,6 +157,9 @@ export function useOllamaRAG() {
         content: fullText,
         isStreaming: false,
         citations,
+        keyPoints,
+        suggestedQuestions,
+        hallucination,
       });
 
       // Auto-highlight the first source chunk in the PDF pane

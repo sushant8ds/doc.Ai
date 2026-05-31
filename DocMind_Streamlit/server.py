@@ -19,7 +19,7 @@ app = FastAPI(title="DocMind AI API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -152,6 +152,13 @@ async def chat(req: ChatRequest):
             for i in retrieved_indices
         ]
 
+        # Generate key points + follow-up suggestions
+        from core.generator import generate_insights, check_hallucination
+        insights = generate_insights(req.query, answer, retrieved_chunks)
+
+        # Hallucination check — runs in parallel conceptually but sequentially here
+        hallucination = check_hallucination(answer, retrieved_chunks)
+
         _session["history"].append({"role": "user", "content": req.query})
         _session["history"].append({"role": "assistant", "content": answer})
 
@@ -160,6 +167,9 @@ async def chat(req: ChatRequest):
             "chunks": retrieved_chunks,
             "pages": pages,
             "query": req.query,
+            "key_points": insights.get("key_points", []),
+            "suggested_questions": insights.get("suggested_questions", []),
+            "hallucination": hallucination,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
