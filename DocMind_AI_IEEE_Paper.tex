@@ -44,7 +44,18 @@
 System for Privacy-Preserving Intelligent PDF Question Answering}
 
 % ---- Authors ------------------------------------------------
+% Guide / Faculty first, then the three students on one row
 \author{
+  % ---- Row 1: Faculty / Guide --------------------------------
+  \IEEEauthorblockN{Guruprasad Konnurmath}
+  \IEEEauthorblockA{
+    \textit{Associate Professor}\\
+    \textit{Dept.\ of Computer Science \& Engineering}\\
+    \textit{KLE Technological University}\\
+    Hubballi, Karnataka, India\\
+    guruprasad.konnurmath@kletech.ac.in}
+  \and
+  % ---- Row 2: Student 1 --------------------------------------
   \IEEEauthorblockN{Sushant D.}
   \IEEEauthorblockA{
     \textit{Dept.\ of Computer Science \& Engineering}\\
@@ -52,6 +63,7 @@ System for Privacy-Preserving Intelligent PDF Question Answering}
     Hubballi, Karnataka, India\\
     sushant@kletech.ac.in}
   \and
+  % ---- Row 2: Student 2 --------------------------------------
   \IEEEauthorblockN{Bhoomi Deshpande}
   \IEEEauthorblockA{
     \textit{Dept.\ of Computer Science \& Engineering}\\
@@ -59,19 +71,13 @@ System for Privacy-Preserving Intelligent PDF Question Answering}
     Hubballi, Karnataka, India\\
     USN: 01FE23BCS145}
   \and
+  % ---- Row 2: Student 3 --------------------------------------
   \IEEEauthorblockN{Rakshita Kulkarni}
   \IEEEauthorblockA{
     \textit{Dept.\ of Computer Science \& Engineering}\\
     \textit{KLE Technological University}\\
     Hubballi, Karnataka, India\\
     USN: 01FE23BCS155}
-  \and
-  \IEEEauthorblockN{Guruprasad Konnurmath}
-  \IEEEauthorblockA{
-    \textit{Dept.\ of Computer Science \& Engineering}\\
-    \textit{KLE Technological University}\\
-    Hubballi, Karnataka, India\\
-    guruprasad.konnurmath@kletech.ac.in}
 }
 
 \maketitle
@@ -230,51 +236,148 @@ processing pipeline} (Python backend), a \emph{REST API layer}
 Fig.~\ref{fig:arch} illustrates the complete system.
 
 % ---- Figure 1: System Architecture -------------------------
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\begin{tikzpicture}[node distance=0.45cm and 0.3cm]
+\begin{tikzpicture}[
+  node distance = 0.55cm and 0.4cm,
+  layer/.style  = {rectangle, draw=black!60, rounded corners=5pt,
+                   minimum height=1.05cm, text centered,
+                   font=\small\bfseries},
+  comp/.style   = {rectangle, draw=black!50, rounded corners=3pt,
+                   minimum height=0.75cm, minimum width=2.7cm,
+                   text centered, font=\scriptsize, fill=white},
+  grp/.style    = {draw=black!35, dashed, rounded corners=6pt,
+                   inner sep=6pt},
+  arrow/.style  = {-{Stealth[length=5pt]}, thick},
+  darrow/.style = {<->{Stealth[length=4pt]}, thick, dashed, gray},
+]
 
-  % --- Presentation Layer ---
-  \node[block, fill=blue!10, minimum width=3.8cm] (chat)
-        {Chat Pane\\{\scriptsize streaming · citations · hallucination}};
-  \node[block, fill=blue!10, minimum width=3.8cm, right=0.25cm of chat] (pdf)
-        {PDF Viewer Pane\\{\scriptsize react-pdf · canvas highlights}};
-  \node[draw, dashed, rounded corners, fit=(chat)(pdf),
-        label=above:{\small\textbf{Presentation Layer (React/TS)}}] (ui) {};
+%% ── LAYER 0: User ─────────────────────────────────────────────────
+\node[comp, fill=gray!15, minimum width=3.6cm] (user)
+      {\textbf{User}\\PDF upload \quad Chat queries};
 
-  % --- API Layer ---
-  \node[block, fill=green!10, minimum width=8.1cm,
-        below=0.55cm of ui.south] (api)
-        {\textbf{REST API Layer} — FastAPI + Uvicorn :8000\\
-         {\scriptsize POST /upload \quad POST /chat \quad GET /health \quad POST /reset}};
+%% ── LAYER 1: Presentation (React/TS) ─────────────────────────────
+\node[comp, fill=blue!12, minimum width=3.2cm,
+      below=0.7cm of user, xshift=-3.4cm] (chat)
+      {\textbf{Chat Pane}\\
+       streaming answer\\
+       citation badges\\
+       key points\\
+       hallucination badge};
+\node[comp, fill=blue!12, minimum width=3.2cm,
+      below=0.7cm of user, xshift=3.4cm] (pdfpane)
+      {\textbf{PDF Viewer Pane}\\
+       react-pdf renderer\\
+       canvas overlay\\
+       page navigation\\
+       source highlights};
+\node[comp, fill=blue!6, minimum width=2.2cm,
+      below=0.7cm of user] (zustand)
+      {Zustand Store\\
+       \textit{IDLE/UPLOAD/}\\
+       \textit{INDEX/CHAT}};
+\begin{scope}[on background layer]
+\node[grp, fill=blue!5, fit=(chat)(pdfpane)(zustand),
+      label={[font=\small\bfseries]above:%
+             Presentation Layer --- React 18 + TypeScript + Vite}] (ui) {};
+\end{scope}
 
-  % --- Backend boxes ---
-  \node[block, fill=orange!10, minimum width=3.5cm,
-        below left=0.55cm and -1.6cm of api.south] (docpipe)
-        {\textbf{Document Pipeline}\\
-         {\scriptsize 1.\ PyMuPDF Extract}\\
-         {\scriptsize 2.\ Page-Aware Chunk}\\
-         {\scriptsize 3.\ MiniLM Embed}\\
-         {\scriptsize 4.\ FAISS Index Build}};
+%% ── LAYER 2: REST API ─────────────────────────────────────────────
+\node[layer, fill=green!12, minimum width=12cm,
+      below=0.7cm of ui.south] (api)
+      {REST API Layer \quad FastAPI + Uvicorn (port 8000)\\
+       {\normalfont\scriptsize
+        \texttt{GET /health} \quad
+        \texttt{POST /upload} \quad
+        \texttt{POST /chat} \quad
+        \texttt{POST /reset}}};
 
-  \node[block, fill=red!8, minimum width=3.5cm,
-        below right=0.55cm and -1.6cm of api.south] (ragpipe)
-        {\textbf{RAG Pipeline}\\
-         {\scriptsize Encode Query}\\
-         {\scriptsize FAISS Search (top-5)}\\
-         {\scriptsize Prompt Builder}\\
-         {\scriptsize Ollama LLaMA 3.2}\\
-         {\scriptsize Hallucination Check}};
+%% ── LAYER 3a: Document Pipeline ──────────────────────────────────
+\node[comp, fill=orange!15, minimum width=2.5cm,
+      below left=0.7cm and 2.5cm of api.south] (pymupdf)
+      {\textbf{Stage 1}\\PyMuPDF Extract\\page-aware chars};
+\node[comp, fill=orange!15, minimum width=2.5cm,
+      below=0.42cm of pymupdf] (chunker)
+      {\textbf{Stage 2}\\Char-level Chunk\\$C{=}500$, $O{=}50$};
+\node[comp, fill=orange!15, minimum width=2.5cm,
+      below=0.42cm of chunker] (embedder)
+      {\textbf{Stage 3}\\MiniLM Embed\\$E\in\mathbb{R}^{N\times384}$};
+\node[comp, fill=orange!15, minimum width=2.5cm,
+      below=0.42cm of embedder] (faissidx)
+      {\textbf{Stage 4}\\FAISS IndexFlatL2\\in-memory index};
+\begin{scope}[on background layer]
+\node[grp, fill=orange!5,
+      fit=(pymupdf)(chunker)(embedder)(faissidx),
+      label={[font=\scriptsize\bfseries]above:Document Pipeline}] (docpipe) {};
+\end{scope}
 
-  % --- Arrows ---
-  \draw[arrow] (ui.south) -- (api.north);
-  \draw[arrow] (api.south) -| (docpipe.north);
-  \draw[arrow] (api.south) -| (ragpipe.north);
+%% ── LAYER 3b: RAG Pipeline ────────────────────────────────────────
+\node[comp, fill=red!10, minimum width=2.7cm,
+      below right=0.7cm and 0.6cm of api.south] (qenc)
+      {\textbf{Step 1}\\Query Encoding\\$\mathbf{q}=\phi(q)\in\mathbb{R}^{384}$};
+\node[comp, fill=red!10, minimum width=2.7cm,
+      below=0.42cm of qenc] (faisssrch)
+      {\textbf{Step 2}\\FAISS Search\\top-$k{=}5$ chunks};
+\node[comp, fill=red!10, minimum width=2.7cm,
+      below=0.42cm of faisssrch] (prompt)
+      {\textbf{Step 3}\\Prompt Builder\\\texttt{[1]...[5]} context};
+\node[comp, fill=red!18, minimum width=2.7cm,
+      below=0.42cm of prompt] (llm)
+      {\textbf{Step 4}\\Ollama LLaMA 3.2\\num\_ctx=2048};
+\node[comp, fill=green!15, minimum width=2.7cm,
+      below=0.42cm of llm] (insight)
+      {\textbf{Step 5}\\Insight Extractor\\key pts + follow-ups};
+\node[comp, fill=yellow!30, minimum width=2.7cm,
+      below=0.42cm of insight] (halluc)
+      {\textbf{Step 6}\\Hallucination Check\\verdict + confidence};
+\begin{scope}[on background layer]
+\node[grp, fill=red!4,
+      fit=(qenc)(faisssrch)(prompt)(llm)(insight)(halluc),
+      label={[font=\scriptsize\bfseries]above:RAG Pipeline}] (ragpipe) {};
+\end{scope}
+
+%% ── LAYER 4: Ollama Runtime ───────────────────────────────────────
+\node[comp, fill=purple!12, minimum width=3.0cm,
+      below=0.65cm of halluc] (ollama)
+      {\textbf{Ollama Runtime}\\LLaMA 3.2 (3B Q4)\\local HTTP API};
+
+%% ── Arrows ────────────────────────────────────────────────────────
+% user → UI
+\draw[arrow] (user.south) -- ++(0,-0.2) -| (chat.north);
+\draw[arrow] (user.south) -- ++(0,-0.2) -| (pdfpane.north);
+\draw[arrow, dashed] (chat) -- (zustand);
+\draw[arrow, dashed] (zustand) -- (pdfpane);
+% UI → API
+\draw[arrow] (ui.south) -- node[right, font=\tiny]{HTTP/REST} (api.north);
+% API → pipelines
+\draw[arrow] (api.south) -| (docpipe.north);
+\draw[arrow] (api.south) -| (ragpipe.north);
+% doc pipeline stages
+\draw[arrow] (pymupdf)--(chunker);
+\draw[arrow] (chunker)--(embedder);
+\draw[arrow] (embedder)--(faissidx);
+% RAG pipeline steps
+\draw[arrow] (qenc)--(faisssrch);
+\draw[arrow] (faisssrch)--(prompt);
+\draw[arrow] (prompt)--(llm);
+\draw[arrow] (llm)--(insight);
+\draw[arrow] (insight)--(halluc);
+% FAISS index ↔ search
+\draw[darrow] (faissidx.east) -- ++(0.3,0) |- (faisssrch.west);
+% LLM → Ollama
+\draw[arrow] (llm.south) -- (ollama.north);
+% Ollama feedback
+\draw[arrow] (ollama.east) -- ++(0.5,0) |- (insight.east);
+\draw[arrow] (ollama.east) -- ++(0.5,0) |- (halluc.east);
 
 \end{tikzpicture}
-\caption{DocMind AI three-tier system architecture.}
+\caption{Complete DocMind AI system architecture. The faculty guide and
+three student contributors built the full stack: document ingestion pipeline
+(left), six-step RAG query pipeline (right), FastAPI REST layer, and
+React/TypeScript dual-pane frontend.
+Dashed arrows indicate shared state; solid arrows indicate data flow.}
 \label{fig:arch}
-\end{figure}
+\end{figure*}
 
 \subsection{Document Processing Pipeline}
 The document processing pipeline is invoked when a user uploads a PDF
@@ -527,8 +630,7 @@ The $i$-th chunk is:
   \quad i = 0,1,\ldots,N-1
   \label{eq:chunk}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:chunk}.}
-The notation $T[a:b]$ denotes the substring of $T$ from character
+Here $T[a:b]$ denotes the substring of $T$ from character
 position $a$ (inclusive) to $b$ (exclusive).
 Each chunk $c_i$ is a 500-character window that starts at position
 $i \times 450$ in the document.
@@ -541,7 +643,6 @@ The total number of non-empty chunks extracted from $T$ is:
   N = \left\lceil \frac{|T| - C}{S} \right\rceil + 1
   \label{eq:nchunks}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:nchunks}.}
 The numerator $|T|-C$ represents the number of characters that must be
 covered after the first full chunk is extracted.
 Dividing by the stride $S$ and applying the ceiling function gives the
@@ -555,7 +656,6 @@ The page label for chunk $c_i$ is:
   p_i = \mathrm{page}\!\left(T[i{\cdot}S]\right)
   \label{eq:pagelabel}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:pagelabel}.}
 Before chunking, a parallel array \texttt{charPage} is built such that
 $\texttt{charPage}[j] = (T[j], p)$ where $p$ is the 1-based PDF page
 number of character $j$.
@@ -575,7 +675,6 @@ Each chunk $c_i$ is mapped to an embedding vector:
   \mathbf{e}_i = \phi(c_i) \in \mathbb{R}^{384}
   \label{eq:embed}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:embed}.}
 The encoder $\phi$ tokenises the chunk text, passes the token sequence
 through a 6-layer transformer, and applies mean pooling over the final
 hidden states to produce a single 384-dimensional vector.
@@ -591,7 +690,6 @@ All chunk embeddings are stacked into the embedding matrix:
             \mathbf{e}_{N-1}\bigr]^{\!\top} \in \mathbb{R}^{N \times 384}
   \label{eq:embmat}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:embmat}.}
 $E$ is an $N \times 384$ matrix where row $i$ is the embedding of the
 $i$-th chunk.
 This matrix is passed directly to FAISS's \texttt{add()} method, which
@@ -610,7 +708,6 @@ squared Euclidean (L2) distance:
   \left\|\mathbf{q} - \mathbf{e}_i\right\|_2^2
   \label{eq:retrieval}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:retrieval}.}
 The operator $\arg\,\mathrm{top}\text{-}k$ returns the $k$ indices
 that produce the \emph{smallest} values of the distance function.
 The query vector $\mathbf{q}$ is compared against every row of $E$ and
@@ -626,7 +723,6 @@ The component-wise L2 distance between query and chunk $i$ is:
       = \sum_{j=1}^{384}\!\left(q_j - e_{ij}\right)^2
   \label{eq:l2}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:l2}.}
 For each of the 384 embedding dimensions $j$, the difference between
 the query coordinate $q_j$ and the chunk coordinate $e_{ij}$ is
 computed, squared, and summed.
@@ -655,7 +751,6 @@ The structured prompt $\Pi$ delivered to the LLM is:
   \;\|\; \texttt{"QUESTION: "} \| q \| \texttt{"}\backslash\texttt{nANSWER:"}
   \label{eq:prompt}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:prompt}.}
 $\|$ denotes string concatenation and $\bigoplus_{i=1}^{k}$ denotes
 the sequential concatenation of $k$ labelled chunks.
 The prompt is structured into three logical zones:
@@ -679,7 +774,6 @@ distribution:
   a \sim P_\theta\!\left(a \mid \Pi(q,\mathcal{C}_k)\right)
   \label{eq:gen}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:gen}.}
 $P_\theta$ is the probability distribution over next tokens defined by
 LLaMA~3.2 with parameters $\theta$.
 The notation $a \sim P_\theta(\cdot \mid \Pi)$ means that the answer
@@ -697,7 +791,6 @@ satisfying:
   \sum_{v \in \mathcal{V}'} P_\theta(v \mid \mathrm{context}) \geq p = 0.9
   \label{eq:nucleus}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:nucleus}.}
 At each generation step, the model's full probability distribution over
 its vocabulary is sorted in descending order.
 Tokens are added to $\mathcal{V}'$ one by one until their cumulative
@@ -721,7 +814,6 @@ temperature $T=0.1$:
   (v,\gamma) = \mathrm{LLM}_{\mathrm{verify}}(a,\mathcal{C}_k;\; T=0.1)
   \label{eq:halluc}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:halluc}.}
 The same LLaMA~3.2 model is invoked a second time with a dedicated
 fact-checking prompt that presents both the generated answer $a$ and
 the retrieved chunks $\mathcal{C}_k$, and instructs the model to
@@ -742,7 +834,6 @@ approximated as:
        {|\mathrm{claims}(a)|}
   \label{eq:gr}
 \end{equation}
-\textbf{Explanation of Eq.~\eqref{eq:gr}.}
 $\mathrm{claims}(a)$ is the set of atomic factual claims extractable
 from answer $a$ (e.g., individual sentences or propositions).
 The relation $s \sqsubseteq c$ denotes that claim $s$ is semantically
