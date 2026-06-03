@@ -65,6 +65,13 @@ System for Privacy-Preserving Intelligent PDF Question Answering}
     \textit{KLE Technological University}\\
     Hubballi, Karnataka, India\\
     USN: 01FE23BCS155}
+  \and
+  \IEEEauthorblockN{Guruprasad Konnurmath}
+  \IEEEauthorblockA{
+    \textit{Dept.\ of Computer Science \& Engineering}\\
+    \textit{KLE Technological University}\\
+    Hubballi, Karnataka, India\\
+    guruprasad.konnurmath@kletech.ac.in}
 }
 
 \maketitle
@@ -151,7 +158,9 @@ This paper makes the following contributions:
 The remainder of this paper is organised as follows.
 Section~\ref{sec:related} reviews related work.
 Section~\ref{sec:arch} describes the system architecture.
-Section~\ref{sec:math} presents the mathematical formulation.
+Section~\ref{sec:algo} presents the system algorithms in formal pseudocode.
+Section~\ref{sec:math} presents the mathematical formulation with
+detailed explanations of every equation.
 Section~\ref{sec:design} details key design decisions.
 Section~\ref{sec:impl} covers implementation.
 Section~\ref{sec:eval} reports evaluation results.
@@ -389,6 +398,122 @@ with four application states managed by Zustand
 \end{figure}
 
 % ============================================================
+\section{System Algorithms}
+\label{sec:algo}
+% ============================================================
+
+This section presents the two core algorithms of DocMind AI as formal
+pseudocode: Algorithm~\ref{alg:index} for offline document indexing and
+Algorithm~\ref{alg:query} for online query processing.
+
+% ---- Algorithm 1: Document Indexing ------------------------
+\begin{algorithm}[t]
+\caption{DocMind AI — Document Indexing Pipeline}
+\label{alg:index}
+\begin{algorithmic}[1]
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\REQUIRE PDF file $\mathcal{F}$, chunk size $C=500$, overlap $O=50$
+\ENSURE  FAISS index $\mathcal{I}$, chunk list $\mathcal{X}$,
+         page map $\mathcal{P}$
+
+\STATE \textbf{// Stage 1: Page-aware text extraction}
+\STATE $\mathcal{T} \leftarrow \{\}$; $\mathrm{charPage} \leftarrow []$
+\FOR{each page $p = 1, 2, \ldots, |\mathcal{F}|$}
+  \STATE $\mathcal{T}[p] \leftarrow \mathrm{PyMuPDF.extractText}(\mathcal{F}, p)$
+  \FOR{each character $ch \in \mathcal{T}[p]$}
+    \STATE $\mathrm{charPage}.\mathrm{append}((ch, p))$
+  \ENDFOR
+\ENDFOR
+\STATE $T \leftarrow \mathrm{join}(ch \;\forall\; (ch,\_) \in \mathrm{charPage})$
+
+\STATE \textbf{// Stage 2: Overlapping character-level chunking}
+\STATE $\mathcal{X} \leftarrow []$; $\mathcal{P} \leftarrow []$;
+       $S \leftarrow C - O$
+\STATE $i \leftarrow 0$
+\WHILE{$i < |T|$}
+  \STATE $c \leftarrow T[i \;:\; i+C]$
+  \IF{$c.\mathrm{strip}() \neq \texttt{""}$}
+    \STATE $\mathcal{X}.\mathrm{append}(c)$
+    \STATE $\mathcal{P}.\mathrm{append}(\mathrm{charPage}[i].\mathrm{page})$
+  \ENDIF
+  \IF{$i + C \geq |T|$} \textbf{break} \ENDIF
+  \STATE $i \leftarrow i + S$
+\ENDWHILE
+
+\STATE \textbf{// Stage 3: Dense embedding}
+\STATE $\phi \leftarrow \mathrm{SentenceTransformer}$(\texttt{"all-MiniLM-L6-v2"})
+\STATE $E \leftarrow \phi.\mathrm{encode}(\mathcal{X})$
+       $\in \mathbb{R}^{|\mathcal{X}| \times 384}$
+\STATE $E \leftarrow E.\mathrm{astype}(\texttt{float32})$
+
+\STATE \textbf{// Stage 4: FAISS index construction}
+\STATE $\mathcal{I} \leftarrow \mathrm{faiss.IndexFlatL2}(384)$
+\STATE $\mathcal{I}.\mathrm{add}(E)$
+
+\RETURN $\mathcal{I},\; \mathcal{X},\; \mathcal{P}$
+\end{algorithmic}
+\end{algorithm}
+
+% ---- Algorithm 2: Query Processing -------------------------
+\begin{algorithm}[t]
+\caption{DocMind AI — Query Processing Pipeline}
+\label{alg:query}
+\begin{algorithmic}[1]
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\REQUIRE User query $q$, FAISS index $\mathcal{I}$,
+         chunk list $\mathcal{X}$, page map $\mathcal{P}$,
+         history $\mathcal{H}$, $k=5$
+\ENSURE  Answer $a$, pages $\mathcal{G}$, insights $\mathcal{K}$,
+         hallucination verdict $v$
+
+\STATE \textbf{// Step 1: Query encoding}
+\STATE $\phi \leftarrow \mathrm{SentenceTransformer}$(\texttt{"all-MiniLM-L6-v2"})
+\STATE $\mathbf{q} \leftarrow \phi.\mathrm{encode}([q])
+       \in \mathbb{R}^{1 \times 384}$
+
+\STATE \textbf{// Step 2: Top-k FAISS retrieval}
+\STATE $D, I \leftarrow \mathcal{I}.\mathrm{search}(\mathbf{q},\; k)$
+\STATE $\mathcal{C}_k \leftarrow \{\mathcal{X}[i] : i \in I[0]\}$
+\STATE $\mathcal{G} \leftarrow \{\mathcal{P}[i] : i \in I[0]\}$
+
+\STATE \textbf{// Step 3: Structured prompt construction}
+\STATE $\mathrm{ctx} \leftarrow \bigcup_{j=1}^{k}
+       \texttt{"[}j\texttt{] "} + \mathcal{C}_k[j]$
+\STATE $\Pi \leftarrow \texttt{"CONTEXT:\textbackslash n"} +
+       \mathrm{ctx} + \texttt{"\textbackslash nQUESTION: "} +
+       q + \texttt{"\textbackslash nANSWER:"}$
+
+\STATE \textbf{// Step 4: LLM answer generation}
+\STATE $a \leftarrow \mathrm{ollama.generate}(\texttt{"llama3.2"},\;
+       \Pi,\; \mathrm{num\_ctx}{=}2048,\;
+       \mathrm{top\_p}{=}0.9,\; \mathrm{top\_k}{=}40)$
+
+\STATE \textbf{// Step 5: Insight extraction}
+\STATE $\Pi_{\mathrm{ins}} \leftarrow
+       \mathrm{buildInsightPrompt}(q,\; a,\; \mathcal{C}_k)$
+\STATE $\mathcal{K} \leftarrow \mathrm{ollama.generate}(
+       \texttt{"llama3.2"},\; \Pi_{\mathrm{ins}},\;
+       T{=}0.3)$
+       \hspace{0.5em}// JSON: key\_points[], suggestions[]
+
+\STATE \textbf{// Step 6: Hallucination verification}
+\STATE $\Pi_{\mathrm{hal}} \leftarrow
+       \mathrm{buildHallucinationPrompt}(a,\; \mathcal{C}_k)$
+\STATE $(v,\gamma) \leftarrow \mathrm{ollama.generate}(
+       \texttt{"llama3.2"},\; \Pi_{\mathrm{hal}},\; T{=}0.1)$
+       \hspace{0.5em}// JSON: verdict, confidence
+
+\STATE \textbf{// Update conversation history}
+\STATE $\mathcal{H}.\mathrm{append}(\{$\texttt{"role":"user","content":}$q\})$
+\STATE $\mathcal{H}.\mathrm{append}(\{$\texttt{"role":"assistant","content":}$a\})$
+
+\RETURN $a,\; \mathcal{G},\; \mathcal{K},\; (v,\gamma)$
+\end{algorithmic}
+\end{algorithm}
+
+% ============================================================
 \section{Mathematical Formulation}
 \label{sec:math}
 % ============================================================
@@ -402,52 +527,115 @@ The $i$-th chunk is:
   \quad i = 0,1,\ldots,N-1
   \label{eq:chunk}
 \end{equation}
-where the total number of chunks is:
+\textbf{Explanation of Eq.~\eqref{eq:chunk}.}
+The notation $T[a:b]$ denotes the substring of $T$ from character
+position $a$ (inclusive) to $b$ (exclusive).
+Each chunk $c_i$ is a 500-character window that starts at position
+$i \times 450$ in the document.
+Because the stride $S=450 < C=500$, consecutive chunks overlap by
+exactly $O=50$ characters, ensuring that no word or sentence that falls
+at a boundary is lost.
+
+The total number of non-empty chunks extracted from $T$ is:
 \begin{equation}
   N = \left\lceil \frac{|T| - C}{S} \right\rceil + 1
   \label{eq:nchunks}
 \end{equation}
+\textbf{Explanation of Eq.~\eqref{eq:nchunks}.}
+The numerator $|T|-C$ represents the number of characters that must be
+covered after the first full chunk is extracted.
+Dividing by the stride $S$ and applying the ceiling function gives the
+number of additional chunks needed.
+Adding 1 accounts for the first chunk.
+For example, a document of $|T|=50{,}000$ characters yields
+$N = \lceil 49{,}500 / 450 \rceil + 1 = 111$ chunks.
+
 The page label for chunk $c_i$ is:
 \begin{equation}
   p_i = \mathrm{page}\!\left(T[i{\cdot}S]\right)
   \label{eq:pagelabel}
 \end{equation}
-where $\mathrm{page}(\cdot)$ maps a character position to its
-originating PDF page number via the pre-computed \texttt{char\_page}
-array.
+\textbf{Explanation of Eq.~\eqref{eq:pagelabel}.}
+Before chunking, a parallel array \texttt{charPage} is built such that
+$\texttt{charPage}[j] = (T[j], p)$ where $p$ is the 1-based PDF page
+number of character $j$.
+The function $\mathrm{page}(\cdot)$ simply looks up
+$\texttt{charPage}[i \cdot S].\mathrm{page}$.
+This mapping persists the page origin of the \emph{first} character of
+each chunk, enabling the frontend to jump directly to the correct PDF
+page when a citation is activated.
 
 \subsection{Dense Embedding}
 Let $\phi : \mathcal{V}^{*} \rightarrow \mathbb{R}^{d}$ denote the
 sentence encoder (\texttt{all-MiniLM-L6-v2}) with $d=384$.
+The domain $\mathcal{V}^{*}$ is the set of all finite strings over
+vocabulary $\mathcal{V}$.
 Each chunk $c_i$ is mapped to an embedding vector:
 \begin{equation}
   \mathbf{e}_i = \phi(c_i) \in \mathbb{R}^{384}
   \label{eq:embed}
 \end{equation}
-The embedding matrix is:
+\textbf{Explanation of Eq.~\eqref{eq:embed}.}
+The encoder $\phi$ tokenises the chunk text, passes the token sequence
+through a 6-layer transformer, and applies mean pooling over the final
+hidden states to produce a single 384-dimensional vector.
+This vector is a dense semantic representation: similar chunks
+(i.e., discussing the same topic) will have high cosine similarity,
+while dissimilar chunks will be far apart in the embedding space.
+Embeddings are cast to \texttt{float32} (32-bit floating point) as
+required by FAISS.
+
+All chunk embeddings are stacked into the embedding matrix:
 \begin{equation}
   E = \bigl[\mathbf{e}_0,\, \mathbf{e}_1,\, \ldots,\,
             \mathbf{e}_{N-1}\bigr]^{\!\top} \in \mathbb{R}^{N \times 384}
   \label{eq:embmat}
 \end{equation}
+\textbf{Explanation of Eq.~\eqref{eq:embmat}.}
+$E$ is an $N \times 384$ matrix where row $i$ is the embedding of the
+$i$-th chunk.
+This matrix is passed directly to FAISS's \texttt{add()} method, which
+stores it in a flat (un-compressed) internal data structure.
+For $N=5{,}000$ chunks, the matrix occupies
+$5{,}000 \times 384 \times 4\,\mathrm{bytes} \approx 7.5$\,MB of RAM.
 
 \subsection{FAISS Nearest-Neighbour Retrieval}
 Given a user query $q$, the query embedding is
 $\mathbf{q} = \phi(q) \in \mathbb{R}^{384}$.
 FAISS \texttt{IndexFlatL2} retrieves the top-$k$ chunks by minimising
-squared Euclidean distance:
+squared Euclidean (L2) distance:
 \begin{equation}
   \mathcal{R}(q,k) =
   \operatorname*{arg\,top\text{-}k}_{i \in \{0,\ldots,N-1\}}
   \left\|\mathbf{q} - \mathbf{e}_i\right\|_2^2
   \label{eq:retrieval}
 \end{equation}
-The L2 distance between query and chunk $i$ is:
+\textbf{Explanation of Eq.~\eqref{eq:retrieval}.}
+The operator $\arg\,\mathrm{top}\text{-}k$ returns the $k$ indices
+that produce the \emph{smallest} values of the distance function.
+The query vector $\mathbf{q}$ is compared against every row of $E$ and
+the $k=5$ rows closest to $\mathbf{q}$ in Euclidean space are
+returned.
+Because the same encoder $\phi$ is used for both chunks and the query,
+chunks whose meaning is close to the query will have small distance
+values and will rank at the top.
+
+The component-wise L2 distance between query and chunk $i$ is:
 \begin{equation}
   d_i = \left\|\mathbf{q} - \mathbf{e}_i\right\|_2^2
       = \sum_{j=1}^{384}\!\left(q_j - e_{ij}\right)^2
   \label{eq:l2}
 \end{equation}
+\textbf{Explanation of Eq.~\eqref{eq:l2}.}
+For each of the 384 embedding dimensions $j$, the difference between
+the query coordinate $q_j$ and the chunk coordinate $e_{ij}$ is
+computed, squared, and summed.
+A smaller $d_i$ means that chunk $c_i$ is semantically closer to the
+query.
+The squared L2 distance is equivalent to (and monotonically related to)
+the cosine distance when embeddings are normalised, but FAISS uses
+the un-normalised squared form for computational efficiency.
+
 The retrieved set is $\mathcal{C}_k = \{c_i : i \in \mathcal{R}(q,k)\}$
 with $k=5$.
 
@@ -459,7 +647,7 @@ $1.92{\times}10^6$ floating-point operations --- negligible on modern
 hardware ($<$10\,ms).
 
 \subsection{Prompt Construction}
-The structured prompt $\Pi$ is constructed as:
+The structured prompt $\Pi$ delivered to the LLM is:
 \begin{equation}
   \Pi(q,\mathcal{C}_k) =
   \texttt{"CONTEXT:}\backslash\texttt{n"} \;\|\;
@@ -467,11 +655,22 @@ The structured prompt $\Pi$ is constructed as:
   \;\|\; \texttt{"QUESTION: "} \| q \| \texttt{"}\backslash\texttt{nANSWER:"}
   \label{eq:prompt}
 \end{equation}
-where $\|$ denotes string concatenation and $\bigoplus$ denotes
-sequential concatenation over retrieved chunks.
+\textbf{Explanation of Eq.~\eqref{eq:prompt}.}
+$\|$ denotes string concatenation and $\bigoplus_{i=1}^{k}$ denotes
+the sequential concatenation of $k$ labelled chunks.
+The prompt is structured into three logical zones:
+(1)~a \emph{context zone} containing the five retrieved chunks, each
+    prefixed with a citation label \texttt{[1]} through \texttt{[5]};
+(2)~a \emph{question zone} containing the user's original query; and
+(3)~an \emph{answer zone} opened with the token \texttt{ANSWER:},
+    which primes the LLM to produce a direct response.
+The citation labels in zone~(1) allow the frontend to extract and
+display source badges alongside the generated answer.
 The total prompt length is bounded by
 $|\Pi| \leq k{\cdot}C + |q| + C_{\mathrm{tmpl}} \approx 2{,}600$
-characters, fitting within the \texttt{num\_ctx}$=2048$ token window.
+characters, fitting within the \texttt{num\_ctx}$=2048$ token window
+(approximately $2{,}600 / 1.3 \approx 2{,}000$ tokens at typical
+tokenisation rates).
 
 \subsection{LLM Generation}
 The LLM generates an answer $a$ by sampling from the conditional
@@ -480,25 +679,62 @@ distribution:
   a \sim P_\theta\!\left(a \mid \Pi(q,\mathcal{C}_k)\right)
   \label{eq:gen}
 \end{equation}
-with nucleus sampling selecting from the smallest vocabulary subset
-$\mathcal{V}' \subseteq \mathcal{V}$ satisfying:
+\textbf{Explanation of Eq.~\eqref{eq:gen}.}
+$P_\theta$ is the probability distribution over next tokens defined by
+LLaMA~3.2 with parameters $\theta$.
+The notation $a \sim P_\theta(\cdot \mid \Pi)$ means that the answer
+string $a$ is generated autoregressively: at each step, the model
+samples one token from the distribution conditioned on the prompt $\Pi$
+and all previously generated tokens.
+Conditioning on $\Pi$ (which contains the retrieved chunks) forces the
+model to derive its answer from the provided evidence rather than
+from parametric knowledge alone, reducing hallucination.
+
+Nucleus (top-$p$) sampling is applied, which restricts sampling to the
+smallest vocabulary subset $\mathcal{V}' \subseteq \mathcal{V}$
+satisfying:
 \begin{equation}
   \sum_{v \in \mathcal{V}'} P_\theta(v \mid \mathrm{context}) \geq p = 0.9
   \label{eq:nucleus}
 \end{equation}
-Generation parameters: \texttt{num\_ctx}$=2048$,
-\texttt{top\_k}$=40$, \texttt{top\_p}$=0.9$.
+\textbf{Explanation of Eq.~\eqref{eq:nucleus}.}
+At each generation step, the model's full probability distribution over
+its vocabulary is sorted in descending order.
+Tokens are added to $\mathcal{V}'$ one by one until their cumulative
+probability mass reaches $p=0.9$.
+Only tokens within $\mathcal{V}'$ are eligible for sampling.
+This procedure eliminates very low-probability tokens (which often
+introduce incoherence or hallucinations) while retaining the diversity
+of the top-90\% of the probability mass.
+Combined with \texttt{top\_k}$=40$ (keeping at most 40 candidate
+tokens) and \texttt{num\_ctx}$=2048$ (context window size in tokens),
+this yields fluent, focused answers.
 
 \subsection{Hallucination Verification}
 The hallucination module computes a grounding verdict
-$v \in \{\texttt{SUPPORTED},\allowbreak\texttt{PARTIALLY\_SUPPORTED},\allowbreak\texttt{NOT\_SUPPORTED}\}$
+$v \in \{\texttt{SUPPORTED},\allowbreak
+        \texttt{PARTIALLY\_SUPPORTED},\allowbreak
+        \texttt{NOT\_SUPPORTED}\}$
 and confidence $\gamma \in [0,100]$ via a secondary LLM call at
 temperature $T=0.1$:
 \begin{equation}
   (v,\gamma) = \mathrm{LLM}_{\mathrm{verify}}(a,\mathcal{C}_k;\; T=0.1)
   \label{eq:halluc}
 \end{equation}
-The grounding ratio is approximated as:
+\textbf{Explanation of Eq.~\eqref{eq:halluc}.}
+The same LLaMA~3.2 model is invoked a second time with a dedicated
+fact-checking prompt that presents both the generated answer $a$ and
+the retrieved chunks $\mathcal{C}_k$, and instructs the model to
+classify whether the claims in $a$ are supported by $\mathcal{C}_k$.
+Temperature $T=0.1$ is used (near-deterministic sampling) to ensure
+that the verdict is consistent and reproducible across repeated calls
+for the same input.
+The model responds in JSON format, returning a three-class verdict and
+an integer confidence score from 0 (completely uncertain) to 100
+(completely certain).
+
+The theoretical grounding ratio underlying this verification is
+approximated as:
 \begin{equation}
   \mathrm{GR}(a,\mathcal{C}_k) =
   \frac{\bigl|\{s \in \mathrm{claims}(a) :
@@ -506,8 +742,20 @@ The grounding ratio is approximated as:
        {|\mathrm{claims}(a)|}
   \label{eq:gr}
 \end{equation}
-where $s \sqsubseteq c$ denotes semantic entailment of claim $s$ by
-chunk $c$.
+\textbf{Explanation of Eq.~\eqref{eq:gr}.}
+$\mathrm{claims}(a)$ is the set of atomic factual claims extractable
+from answer $a$ (e.g., individual sentences or propositions).
+The relation $s \sqsubseteq c$ denotes that claim $s$ is semantically
+entailed by chunk $c$ --- i.e., the information asserted in $s$ can be
+inferred from the text of $c$.
+$\mathrm{GR}$ therefore measures what fraction of the answer's claims
+are directly supported by retrieved evidence.
+$\mathrm{GR}=1.0$ corresponds to verdict \texttt{SUPPORTED};
+$\mathrm{GR}=0.0$ corresponds to \texttt{NOT\_SUPPORTED};
+intermediate values correspond to \texttt{PARTIALLY\_SUPPORTED}.
+Because automated claim extraction and entailment checking are
+computationally expensive, the LLM itself serves as a surrogate
+evaluator in the actual implementation (Eq.~\eqref{eq:halluc}).
 
 % ============================================================
 \section{Key Design Decisions}
