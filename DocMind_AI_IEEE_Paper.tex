@@ -215,6 +215,24 @@ Ollama~\cite{ollama2023} provides a unified runtime for running
 quantised LLMs locally, supporting LLaMA~3.2, Mistral, and Phi-3.
 By serving models via a local HTTP API, Ollama enables seamless
 integration while keeping all inference on-device.
+Transformer-based generative AI pipelines have demonstrated strong
+capability in clinical knowledge extraction from electronic health
+records~\cite{naik2025healing}, illustrating the breadth of tasks
+addressable by locally-deployed language models.
+
+\subsection{Generative AI for Structured Data}
+Recent work has applied generative models beyond text question answering.
+Patil et al.~\cite{patil2025gan} demonstrate GAN-based sentiment
+analysis of product reviews, showing that adversarial training improves
+classification robustness.
+Kore et al.~\cite{kore2026cgan} employ conditional GANs for personalised
+image and video synthesis, while Reddy et al.~\cite{reddy2026dcgan}
+combine DCGANs with feature-based explainability for synthetic face
+generation and fake-image detection.
+These works collectively underscore the growing role of generative AI
+across diverse modalities — from text and structured data to images —
+motivating the design of privacy-preserving local pipelines such as
+DocMind AI.
 
 \subsection{Document AI Systems}
 Commercial systems such as Adobe Acrobat AI Assistant, ChatPDF, and
@@ -1328,7 +1346,7 @@ the foundational tools that made this work possible.
 % ============================================================
 %  BIBLIOGRAPHY
 % ============================================================
-\begin{thebibliography}{12}
+\begin{thebibliography}{16}
 
 \bibitem{lewis2020rag}
 P.~Lewis, E.~Perez, A.~Piktus, F.~Petroni, V.~Karpukhin, N.~Goyal,
@@ -1400,6 +1418,42 @@ W.~Shi, S.~Min, M.~Yasunaga, M.~Seo, R.~James, M.~Lewis,
 L.~Zettlemoyer, and W.-T.~Yih,
 ``REPLUG: Retrieval-augmented black-box language models,''
 \emph{arXiv preprint arXiv:2301.12652}, 2023.
+
+\bibitem{naik2025healing}
+G.~Naik, S.~Bendigerimath, V.~Kawari, G.~Narajji, and G.~Konnurmath,
+``Healing through language: Transformer-based Gen AI pipeline with T5
+for clinical knowledge extraction from EHRs,''
+in \emph{Proc.\ 2025 IEEE 4th Int.\ Conf.\ for Advancement in
+Technology (ICONAT)}, pp.~1--6, 2025,
+doi: 10.1109/ICONAT66879.2025.11362713.
+
+\bibitem{patil2025gan}
+V.~Patil, V.~S.~Hiremani, A.~Mulimani, S.~R.~Kolagal, and
+G.~Konnurmath,
+``GAN based sentiment analysis of Amazon reviews,''
+in \emph{Proc.\ 2025 IEEE 4th Int.\ Conf.\ for Advancement in
+Technology (ICONAT)}, pp.~1--7, 2025,
+doi: 10.1109/ICONAT66879.2025.11362707.
+
+\bibitem{kore2026cgan}
+S.~Kore, S.~Nayak, P.~Kalakamb, S.~Doddamani, and G.~Konnurmath,
+``Personalised image and video synthesis using conditional generative
+adversarial networks,''
+in A.~Chakravorty, S.~Hussain, R.~Kumari (Eds.),
+\emph{Artificial Intelligence: Theory and Applications (AITA 2025)},
+Lecture Notes in Networks and Systems, vol.~1865,
+Springer, Cham, 2026,
+doi: 10.1007/978-3-032-19185-4\_7.
+
+\bibitem{reddy2026dcgan}
+K.~K.~K.~Reddy \emph{et al.},
+``Synthetic human face generation using DCGAN and fake image
+classification with feature-based explanation,''
+in A.~Chakravorty, S.~Hussain, R.~Kumari (Eds.),
+\emph{Artificial Intelligence: Theory and Applications (AITA 2025)},
+Lecture Notes in Networks and Systems, vol.~1865,
+Springer, Cham, 2026,
+doi: 10.1007/978-3-032-19185-4\_1.
 
 \end{thebibliography}
 
